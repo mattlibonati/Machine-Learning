@@ -1,0 +1,375 @@
+
+---
+title: "Fitting and Interpreting ANCOVA Models"
+output:
+  html_document:
+    toc: true
+---
+
+
+```{r}
+#install.packages("RCurl") 
+
+library(RCurl) # use RCurl to obtain data from github
+data_raw <- getURL("https://raw.githubusercontent.com/mattlibonati/Machine-Learning/main/datasets/NutritionStudy.csv")
+data <- read.csv(text = data_raw) 
+
+display(data)
+```
+
+
+```{r}
+# Load dplyr
+library(dplyr)
+
+# Group by count using dplyr
+agg_tbl <- data %>% group_by(Gender) %>% 
+  summarise(total_count=n(),
+            .groups = 'drop')
+agg_tbl
+
+# Convert tibble to df
+gen_count <- agg_tbl %>% as.data.frame()
+
+print(gen_count)
+
+cat('Percent Male:',42/(273+42))
+```
+
+
+```{r}
+%md
+Lattice is highly useful for conditional plotting, which is key in ANOVA and ANCOVA models. <br>
+<b>Documentation: </b> https://manning-content.s3.amazonaws.com/download/e/d13d6ca-337d-4c01-8260-02f13a32f2fd/BonusChapter-23.pdf
+```
+
+
+```{r}
+%md
+Plots with GG PLot
+```
+
+
+```{r}
+# install.packages("ggplot2")
+library(ggplot2)
+library(gridExtra)
+
+options(repr.plot.width = 2000, repr.plot.height =600)
+```
+
+
+```{r}
+plot1 = ggplot(data, aes(x = BetaPlasma, y = Cholesterol, colour = Gender, shape = Gender)) +
+  geom_point(aes(colour = Gender)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("BetaPlasma") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24)) 
+  
+plot2 = ggplot(data, aes(x = BetaDiet, y = Cholesterol, colour = Gender, shape = Gender)) +
+  geom_point(aes(colour = Gender)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("BetaDiet") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot3 = ggplot(data, aes(x = Alcohol, y = Cholesterol, colour = Gender, shape = Gender)) +
+  geom_point(aes(colour = Gender)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("Alcohol") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot4 = ggplot(data, aes(x = Calories, y = Cholesterol, colour = Gender, shape = Gender)) +
+  geom_point(aes(colour = Gender)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("Calories") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot5 = ggplot(data, aes(x = RetinolPlasma, y = Cholesterol, colour = Gender, shape = Gender)) +
+  geom_point(aes(colour = Gender)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("RetinolPlasma") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot6 = ggplot(data, aes(x = RetinolDiet, y = Cholesterol, colour = Gender, shape = Gender)) +
+  geom_point(aes(colour = Gender)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("RetinolDiet") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot7 = ggplot(data, aes(x = Fat, y = Cholesterol, colour = Gender, shape = Gender)) +
+  geom_point(aes(colour = Gender)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("Fat") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot8 = ggplot(data, aes(x = Fiber, y = Cholesterol, colour = Gender, shape = Gender)) +
+  geom_point(aes(colour = Gender)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("Fiber") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+gg_list1 <- list(plot1,plot5)
+gg_list2 <- list(plot2,plot6)
+gg_list3 <- list(plot3,plot7)
+gg_list4 <- list(plot4,plot8)
+
+# require(gridExtra)
+grid.arrange(grobs = c(gg_list1, gg_list2, gg_list3, gg_list4), ncol = 4, as.table = FALSE)
+```
+
+
+```{r}
+%md
+<b>(1)</b> If we had to pick one point in all of these plots conditioned on Gender to be an outlier, then which point would we pick? Find the observation in the data set and provide the ID number?
+
+```
+
+
+```{r}
+library(dplyr)
+display(filter(data, data$Alcohol > 200))
+```
+
+
+```{r}
+%md
+<b>(2)</b> Do these plots conditioned on vitamin use suggest that vitamin use affects cholesterol? Why or why not?
+```
+
+
+```{r}
+plot1 = ggplot(data, aes(x = BetaPlasma, y = Cholesterol, colour = VitaminUse, shape = VitaminUse)) +
+  geom_point(aes(colour = VitaminUse)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("BetaPlasma") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24)) 
+  
+plot2 = ggplot(data, aes(x = BetaDiet, y = Cholesterol, colour = VitaminUse, shape = VitaminUse)) +
+  geom_point(aes(colour = VitaminUse)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("BetaDiet") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot3 = ggplot(data, aes(x = Alcohol, y = Cholesterol, colour = VitaminUse, shape = VitaminUse)) +
+  geom_point(aes(colour = VitaminUse)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("Alcohol") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot4 = ggplot(data, aes(x = Calories, y = Cholesterol, colour = VitaminUse, shape = VitaminUse)) +
+  geom_point(aes(colour = VitaminUse)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("Calories") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot5 = ggplot(data, aes(x = RetinolPlasma, y = Cholesterol, colour = VitaminUse, shape = VitaminUse)) +
+  geom_point(aes(colour = VitaminUse)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("RetinolPlasma") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot6 = ggplot(data, aes(x = RetinolDiet, y = Cholesterol, colour = VitaminUse, shape = VitaminUse)) +
+  geom_point(aes(colour = VitaminUse)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("RetinolDiet") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot7 = ggplot(data, aes(x = Fat, y = Cholesterol, colour = VitaminUse, shape = VitaminUse)) +
+  geom_point(aes(colour = VitaminUse)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("Fat") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+plot8 = ggplot(data, aes(x = Fiber, y = Cholesterol, colour = VitaminUse, shape = VitaminUse)) +
+  geom_point(aes(colour = VitaminUse)) + # Points and color by group
+  geom_smooth(method = "lm", fill = NA) + 
+  scale_color_discrete("Groups") +  # Change legend title
+  xlab("Fiber") +              # X-axis label
+  ylab("Cholesterol")  +             # Y-axis label
+  theme(axis.line = element_line(colour = "black", # Changes the default theme
+                                 size = 0.24))
+
+gg_list1 <- list(plot1,plot5)
+gg_list2 <- list(plot2,plot6)
+gg_list3 <- list(plot3,plot7)
+gg_list4 <- list(plot4,plot8)
+
+# require(gridExtra)
+grid.arrange(grobs = c(gg_list1, gg_list2, gg_list3, gg_list4), ncol = 4, as.table = FALSE)
+```
+
+
+```{r}
+%md
+<b> (3) </b>Which two variables appear to have the best regression lines? <br>
+RetinolDiet and Calories appear to have the best regression lines because their slopes are the steepest i.e. greater beta coefficients relative to the other predictors.
+```
+
+
+```{r}
+%md
+<b> (4)	</b> The variable retinol diet appear to have two regression lines with nice slopes to them.  Should we trust those regression lines?  Are there reasons to consider those regression lines to be bad regression lines? <br>
+ID number 171 – Female – has a RetinolDiet of 6901, an outlier which looks like mighty be impacting the slope of the “Female” by group coefficient. That is, less outlier ID number 171, the “Male” and “Female” slopes might be more similar. Provided only 13% of observations are male plus aforementioned outlier makes these regression lines questionable.  
+```
+
+
+```{r}
+library(dplyr)
+display(filter(data, data$RetinolDiet > 6000))
+```
+
+
+```{r}
+%md
+<b>(5)</b> Are there any plots that do not make any sense?  Hint:  Sometimes we condition on a variable and then the relationship between the predictor variable and the response variable becomes nonsense.  Do we see that behavior in any of the plots? <br>
+The fiber plot does not make sense. The regression lines are effectively saying greater fiber intake leads to higher cholesterol for females, but lowers cholesterol for males. 
+```
+
+
+```{r}
+%md
+<b> (6) </b> Fit the following ANCOVA model.  Write out the regression equations for Male and Female.
+```
+
+
+```{r}
+model.1 <- lm(Cholesterol ~ Gender + Fat, data=data)
+summary(model.1)
+```
+
+
+```{r}
+%md
+$$ Y_{Male} = 29.97 + (46.76 x 1) + (2.68 x Fat) $$ <br>
+$$ Y_{Female} = 29.97 + (46.76 x 0) + (2.68 x Fat) $$
+```
+
+
+```{r}
+%md
+<b> (7) </b> Fit the following ANCOVA model.  Write out the regression equations for Male and Female.
+```
+
+
+```{r}
+model.2 <- lm(Cholesterol ~ Gender:Fat, data=data)
+
+print(anova(model.2))
+print(summary(model.2))
+
+```
+
+
+```{r}
+%md
+$$ Y_{Male} = 33.69 + (3.04 x Fat) $$ <br>
+$$ Y_{Female} = 33.69 + (2.65 x Fat) $$
+```
+
+
+```{r}
+%md
+<b> (8) </b> These two ANCOVA models have different model specifications.  Compute the Mean Absolute Error (MAE) and the Mean Square Error (MSE) for both model.1 and model.2.  Which model should we prefer?
+```
+
+
+```{r}
+#install.packages("ie2misc") 
+#install.packages("Metrics") 
+```
+
+
+```{r}
+library(ie2misc) #mae function from ie2misc library
+library(Metrics) #mse function
+
+# model.1
+Cholesterol_pred <- predict(model.1, newdata = data)
+Cholesterol <- data$Cholesterol
+
+cat("model.1","\nMAE:",mae(predicted = Cholesterol_pred, Cholesterol),"\nMSE:",mse(data$Cholesterol, Cholesterol_pred))
+
+# model.2
+Cholesterol_pred <- predict(model.2, newdata = data)
+Cholesterol <- data$Cholesterol
+
+cat("\n\nmodel.2","\nMAE:",mae(predicted = Cholesterol_pred, Cholesterol),"\nMSE:",mse(data$Cholesterol, Cholesterol_pred))
+```
+
+
+```{r}
+%md
+<b> (9) </b> Fit the following ANCOVA model.  Write out the regression equations for Male and Female.
+```
+
+
+```{r}
+data$Male <- ifelse(data$Gender=='Male',1,0)
+
+model.3 <- lm(Cholesterol ~ Male + Fat + Male:Fat, data=data)
+
+print(anova(model.3))
+print(summary(model.3))
+```
+
+
+```{r}
+%md
+$$ Y_{Male} = 25.15 + (90.79 x 1) + (2.74 x Fat) - (0.48 x Fat) $$ <br>
+$$ Y_{Female} = 25.15 + (90.79 x 0) + (2.74 x Fat) - (0.48 x 0) $$
+```
+
+
+```{r}
+# model.2
+Cholesterol_pred <- predict(model.3, newdata = data)
+Cholesterol <- data$Cholesterol
+
+cat("model.3","\nMAE:",mae(predicted = Cholesterol_pred, Cholesterol),"\nMSE:",mse(data$Cholesterol, Cholesterol_pred))
+```
+
